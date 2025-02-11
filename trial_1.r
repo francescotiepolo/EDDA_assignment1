@@ -2,7 +2,9 @@ data <- read.table("cholesterol.txt", header = TRUE, sep = " ")
 
 print(data)
 
-pdf("plots_1a.pdf")  # Saves all following plots to a PDF file
+# 1a
+
+pdf("plots_1a.pdf")  
 
 hist(data$Before, main = "Histogram of Before", col = "#191958")
 
@@ -16,3 +18,16 @@ qqline(data$After8weeks, col = "red")
 
 dev.off()
 
+# 1b
+
+t_paired <- t.test(data$Before, data$After8weeks, paired = TRUE)
+t_unpaired <- t.test(data$Before, data$After8weeks, paired = FALSE)
+#do we need this one? 
+#var_test <- var.test(data$Before, data$After8weeks)
+#print(var_test)
+
+print(t_paired)
+print(t_unpaired)
+
+# Mann-Whitney only if the data is independent.
+# Permutations seems yes since does not assume normality
