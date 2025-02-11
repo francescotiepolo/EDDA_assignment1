@@ -2,7 +2,7 @@ data <- read.table("cholesterol.txt", header = TRUE, sep = " ")
 
 print(data)
 
-pdf("plots.pdf")  # Saves all following plots to a PDF file
+pdf("plots_1a.pdf")  # Saves all following plots to a PDF file
 
 hist(data$Before, main = "Histogram of Before", col = "#191958")
 
