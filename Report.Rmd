@@ -1,0 +1,41 @@
+---
+title: "Assignment 1 Report"
+output:
+  html_document: default
+  pdf_document: default
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Read the data
+setwd("~/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1")
+data <- read.table("crops.txt", header=TRUE)
+```
+
+## Exercise 2
+
+### a)
+
+We first perform ANOVA only with County and Related.
+
+```{r}
+model = lm(Crops ~ County + Related, data=data); anova(model)
+```
+
+We follow by including the interaction between the two
+
+```{r}
+model_int = lm(Crops ~ County * Related, data=data); anova(model_int)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
