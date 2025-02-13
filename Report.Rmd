@@ -1,41 +1,58 @@
 ---
 title: "Assignment 1 Report"
 output:
-  html_document: default
   pdf_document: default
 date: "`r Sys.Date()`"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
 
 # Read the data
 setwd("~/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1")
 data <- read.table("crops.txt", header=TRUE)
+data$County <- factor(data$County)  
+data$Related <- factor(data$Related, levels = c("no", "yes"))
 ```
 
 ## Exercise 2
 
 ### a)
 
-We first perform ANOVA only with County and Related.
+We first plot the data:
 
+```{r, echo=FALSE}
+ggplot(data, aes(x = County, y = Crops, fill = Related)) +
+  geom_boxplot() +
+  labs(title = "Crops by County and Related Factor",
+       x = "County",
+       y = "Crops") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+We then perform ANOVA only with County and Related:
 ```{r}
 model = lm(Crops ~ County + Related, data=data); anova(model)
 ```
 
-We follow by including the interaction between the two
-
+We follow by including the interaction between the two:
 ```{r}
 model_int = lm(Crops ~ County * Related, data=data); anova(model_int)
 ```
 
-## Including Plots
+The interaction terms are not significant, let's use the first model; are its residuals normally distributed?
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r, echo=FALSE}
+par(mfrow=c(1,2)); qqnorm(residuals(model))
+plot(fitted(model), residuals(model))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Now we want to estimate the crops for a typical farm in County 3 for which landlord and tenant are not related. Let's look at the model results:
+```{r}
+summary(model)$coefficients
+```
+
+Thus, to calculate the desired value we compute:
+$$Crops_{cou.=3, rel.=no} = 6800.6 + 959.7 = 7760.3$$
