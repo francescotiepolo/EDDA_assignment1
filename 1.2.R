@@ -18,8 +18,8 @@ ggplot(data, aes(x = County, y = Crops, fill = Related)) +
   theme(plot.title = element_text(hjust = 0.5))
 
 ## Run ANOVA
-model = lm(Crops ~ County + Related, data=data); anova(model)
-model_int = lm(Crops ~ County * Related, data=data); anova(model_int)
+model = lm(Crops ~ County + Related, data=data); anova(model); summary(model)
+model_int = lm(Crops ~ County * Related, data=data); anova(model_int); summary(model_int)
 
 ## Check distribution of residuals
 par(mfrow=c(1,2)); qqnorm(residuals(model))
