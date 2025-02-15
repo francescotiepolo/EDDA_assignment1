@@ -126,3 +126,14 @@ hist(data$After8weeks,
      col="lightgray", 
      border="black", 
      prob=TRUE)
+
+#1e
+
+bin_test_1 <- binom.test(sum(data$After8weeks < 6), length(data$After8weeks), p = 0.5, alternative = "l")
+print(bin_test_1)
+
+successes <- sum(data$After8weeks < 4.5)
+n <- length(data$After8weeks) 
+
+bin_test_2 <- binom.test(successes, n, p = 0.25, alternative = "g")
+print(bin_test_2)
