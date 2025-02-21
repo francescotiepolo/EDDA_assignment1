@@ -1,0 +1,176 @@
+---
+title: "Assignment 1 Report"
+output:
+  pdf_document: default
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Import libraries
+library(ggplot2)
+library(patchwork)
+options(digits = 3)
+
+# Read the data
+setwd("~/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1/Part 2")
+data <- read.table("crops.txt", header=TRUE)
+data$County <- factor(data$County)  
+data$Related <- factor(data$Related, levels = c("no", "yes"))
+```
+
+## Exercise 2
+
+  We continue with the analysis of the values of crops for several farms in Iowa for which data was collected from three different counties of the state. Namely, we are interested in the effect (on the amount of crops) of the county in which the farm is located and the possible relation that the tenant might have with the landlord. In addition, we are also provided additional information on the size of each farm. A summary of the data is provided here (for the 4 variables, over the total 30 observations):
+
+```{r}
+summary(data)
+```
+
+
+### a)
+
+  We are initially interested in analyzing the effect of *County* and *Related* on *Crops*, without taking *Size* into account, therefore the interest is firstly devoted to the following two-way ANOVA model:
+$$Cr_{ijk}=\mu+\alpha_{i}+\beta_{j}+\gamma_{ij}+e_{ijk}$$
+where $Cr_{ijk}$ refers to the value of *Crops* of observation $k$ (in *County* $i$ and *Related* $j$), $\mu$ to the overall mean, $\alpha_i$ to the main effect of *County* $i$, $\beta_j$ to the main effect of *Related* $j$, $\gamma_{ij}$ to the interaction effect of levels $i$ and $j$ of *County* and *Related* (respectively) and $e_{ijk}$ to the independent error of the model (of which normality will later be tested). Thus, by studying this (and the following) ANOVA model(s), we test (with a $0.05$ significance level) the following hypotheses:
+
+1. $H_{int}: \gamma_{ij}=0$ for every $(i,j)$ (no interaction between factors *County* and *Related*);
+
+2. $H_{cou}: \alpha_{i}=0$ for every $i$ (no main effect of *County*);
+
+3. $H_{rel}: \beta_{j}=0$ for every $j$ (no main effect of *Related*).
+
+```{r}
+model_int = lm(Crops ~ County * Related, data=data); anova(model_int)
+```
+
+Focusing on the last p-value, following the computation of the F-statistics reported on the *F value* column, we cannot reject $H_{int}$ as $0.88>0.05$. We double check the statement by running an ANOVA model without interaction term and comparing it with our first model:
+
+```{r}
+model = lm(Crops ~ County + Related, data=data); anova(model_int, model)
+```
+
+The p-value is indeed the same (because of the use of a balanced design). For additional context, we plot the *Crops* amounts agains the *County* factor for the two *Related* levels:
+
+```{r, echo=FALSE, fig.height=3}
+interaction.plot(data$County, data$Related, data$Crops,
+                 main="Interaction Plot",
+                 xlab="County",
+                 ylab="Crops",
+                 trace.label="Related")
+```
+
+As expected, the lines do not differ significantly from a parallel behavior, signalling the high likelihood of lack of interaction. Therefore, in the following parts of the report, the model of interest will be the one without interaction:
+
+```{r}
+anova(model)
+```
+
+Analyzing this, the significance of the estimates for *County* and *Related* is not greatly impacted compared to the model with interaction and, thus, we again cannot reject neither $H_{cou}$ nor $H_{rel}$, signalling the lack of sufficient evidence in our data needed to prove the existence of a main effect of *County* and *Related* on *Crops*. Nevertheless, we check the requirement of the model, namely the normality assumption for the model residuals $e_{ijk}$ and that their spread does not change systematically with the fitted values $\hat{Y}_{ijk}$:
+
+```{r, echo=FALSE, fig.height=3}
+par(mfrow=c(1,2)); qqnorm(residuals(model))
+plot(fitted(model), residuals(model),
+     main="Residuals Spread",
+     xlab = expression(hat(Y)[ijk]),
+     ylab = expression(e[ijk]))
+```
+
+From the above plots, we cannot state the absence of the normality assumption, meaning the model, even if with not significant estimates, is at least valid (according to this observation).
+  The last step of this first part of Exercise 2 consists in utilizing the estimates of our model: we want to estimate the crops for a typical farm in *County* 3 for which landlord and tenant are *not* related, referring to the following:
+
+```{r}
+summary(model)$coefficients
+```
+The desired value can then be computed in the following way:
+$$Crops_{cou=3, rel=no} = 6800.6 + 959.7 = 7760.3$$
+### b)
+
+  We proceed by including *Size* in our analysis, included in the model as numerical explanatory variable. In particular, we are interested in investigating whether the influence of *Size* on the *Crops* value is similar for all three counties and whether the influence of *Size* depends on the relation of landlord and tenant of the farm.
+  Starting with the former, we formulate the following ANCOVA model:
+$$Cr_{ik}=\mu+\alpha_{i}+\beta_{j}+\delta S_{ik}+\lambda_{i} S_{ik}+e_{ijk}$$
+where $S_{ik}$ refers to the *Size* of observation $k$ (of *County* $i$), $\delta$ to its effect on *Crops* ($Cr_{ik}$) and $\lambda_{i}$ to the interaction effect between *Size* of observation $k$ (of *County* $i$) and factor *County* $i$. The corresponding null hypotheses then become:
+
+1. $H_{c/s}: \lambda_{i}=0$ for every $i$ (no interaction between *County* and *Size*);
+
+2. $H_{cou}: \alpha_{i}=0$ for every $i$ (no main effect of *County*).
+
+3. $H_{rel}: \beta_{j}=0$ for every $j$ (no main effect of *Related*).
+
+Since *Size* is only included as explanatory variable, we are not formally interested in its main effect and, thus, a null hypothesis about $\delta$.
+To test $H_{s/c}$ we perform:
+```{r}
+model_base_size <- lm(Crops ~ County + Related + Size, data=data)
+model_interact_county <- lm(Crops ~ Related + County * Size, data = data)
+anova(model_interact_county, model_base_size)
+```
+
+Therefore, the interaction effect ($\lambda_{i}$) is significant at the $0.05$ significance value and $H_{s/c}$ can ultimately be rejected. Regarding $H_{cou}$, we explicitly run the following:
+```{r}
+anova(model_interact_county)
+```
+and thus also reject $H_{cou}$, meaning that the data applied to this model offers sufficient evidence to reject $\alpha_{i}=0$ for every $i$. $H_{rel}$ cannot instead be rejected (p-value$=0.114$).
+
+  Similarly, for the interaction between *Size* and the factor *Related*, the ANCOVA model can be expressed as follow:
+$$Cr_{jk}=\mu+\alpha_{i}+\beta_{j}+\delta S_{jk}+\rho_{j} S_{jk}+e_{ijk}$$
+where $S_{jk}$ refers to the *Size* of observation $k$ (of *Related* factor $j$), $\delta$ to its effect on *Crops* ($Cr_{ik}$) and $\rho_{j}$ to the interaction effect between *Size* of observation $k$ and factor *Related* $j$. The corresponding null hypotheses then become:
+
+1. $H_{r/s}: \rho_{j}=0$ for every $j$ (no interaction between *Related* and *Size*);
+
+2. $H_{cou}: \alpha_{i}=0$ for every $i$ (no main effect of *County*).
+
+3. $H_{rel}: \beta_{j}=0$ for every $j$ (no main effect of *Related*).
+
+Following the desogn applied above for *County* and its interaction with *Size*:
+```{r}
+model_interact_related <- lm(Crops ~ County + Related * Size, data = data)
+anova(model_interact_related, model_base_size)
+```
+As the F test demonstrates, we cannot reject $H_{r/s}$ since its p-value it is larger than the significance desired. Printing the whole ANCOVA model, we can also state that we fail to reject $H_{rel}$:
+```{r}
+anova(model_interact_related)
+```
+
+meaning that *Related* does not seem to have a significant effect on the value of *Crops* neither through a main nor a interaction (with *Size*) effect. On the other hand, $H_{cou}$ can again be rejected (p-value$=0.039$) on the basis of which we can state that *County* has a significant effect on *Crops*.
+The interactions studied regarding *Size* can also be studied graphically as follows:
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+p1 <- ggplot(data, aes(x=Size, y=Crops, color=County)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE) +
+  ggtitle("Effect of Size by County")
+p2 <- ggplot(data, aes(x=Size, y=Crops, color=Related)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE) +
+  ggtitle("Effect of Size by Relatedness")
+p1 + p2
+```
+It can then be stated that the graphics confirm the statistical tests above, as it can be seen how the effect of *Size* (the slope of the lines) differ more significantly in the *County* panel compared to the *Related* one.
+
+  The most appropriate model to study the data at hand is therefore the one including *County*, *Related*, *Size* and the interaction of the latter with *County*.
+### c)
+
+  Observing the estimates of the model just mentioned:
+```{r}
+summary(model_interact_county)$coefficients
+```
+we can study the effect of (1) *County*, (2) *Related* nad (3) *Size*:
+
+1. *County* has a significant impact on *Crops*, such that farms in *County* 2 produce significantly less *Crops*, while there is no significant difference between production of farms in *County* 1 and 3 (keeping everything else constant); this effect (related to *County* 2) is significantly contrasted the larger the farm is.
+
+2. Being related to the landlord does not significantly impact the value of *Crops*.
+
+3. Other than the already mentioned interaction effect with *County* factor 2, *Size* has a significant main positive effect on *Crops*: the larger the farm, the more it will produce (keeping everything else constant).
+### d)
+
+Lastly we are asked to predict the *Crops* for a farm from *County* 2 of *Size* 165, with related landlord and tenant. Looking at our chosen model, we compute:
+$$Crops_{cou=2, rel=yes, s=165} = 2461.01 -239.10-4214.05+22.70*165+26.59*165 = 6141.30$$
+as confirmed by the follwing code, which also provides us the error variance:
+```{r}
+farm <- data.frame(County = factor(2, levels = levels(data$County)),
+                      Size = 165,
+                      Related = "yes")
+predicted_crops <- predict(model_interact_county, farm, interval="prediction")
+predicted_crops
+```
+
