@@ -2,7 +2,7 @@ library(ggplot2)
 library(patchwork)
 
 # Read the data
-setwd("~/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1")
+setwd("~/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1/Part 2")
 data <- read.table("crops.txt", header=TRUE)
 data$County <- factor(data$County)  
 data$Related <- factor(data$Related, levels = c("no", "yes"))
@@ -14,8 +14,9 @@ data$Related <- factor(data$Related, levels = c("no", "yes"))
 interaction.plot(data$County, data$Related, data$Crops)
 
 ## Run ANOVA
-model_int = lm(Crops ~ County * Related, data=data); anova(model_int); summary(model_int)
 model = lm(Crops ~ County + Related, data=data); anova(model); summary(model)
+model_int = lm(Crops ~ County * Related, data=data); anova(model_int); summary(model_int)
+anova(model_int, model)
 
 ## Check distribution of residuals
 par(mfrow=c(1,2)); qqnorm(residuals(model))
@@ -42,17 +43,19 @@ p2 <- ggplot(data, aes(x=Size, y=Crops, color=Related)) +
   ggtitle("Effect of Size on Crops by Relatedness")
 p1 + p2
 
+## Model with size without any interaction
+model_base_size <- lm(Crops ~ County + Related + Size, data=data)
+anova(model_base_size); anova(model_base_size, model)
+
 ## Model with interaction between County and Size - BEST!!!
-model_interact_county <- lm(Crops ~ County * Size + Related, data = data)
+model_interact_county <- lm(Crops ~ Related + County * Size, data = data)
 anova(model_interact_county); summary(model_interact_county)
+anova(model_interact_county, model_base_size)
 
 ## Model with interaction between Related and Size
 model_interact_related <- lm(Crops ~ County + Related * Size, data = data)
 anova(model_interact_related); summary(model_interact_related)
-
-## Simple ANCOVA model
-model_simple <- lm(Crops ~ County + Related + Size, data = data)
-anova(model_simple); summary(model_simple)
+anova(model_interact_related, model_base_size)
 
 
 # c
