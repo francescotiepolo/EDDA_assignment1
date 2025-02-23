@@ -1,4 +1,4 @@
-data <- read.table("cholesterol.txt", header = TRUE, sep = " ")
+data <- read.table("C:\\Users\\Utente\\Desktop\\master uva-VU\\EDDA\\assignment 1\\EDDA_assignment1\\Part 1\\cholesterol.txt", header = TRUE, sep = " ")
 print(data)
 set.seed(13319817)
 
