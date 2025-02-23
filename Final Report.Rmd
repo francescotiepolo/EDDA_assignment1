@@ -1,0 +1,308 @@
+---
+title: "Assignment 1"
+author: "Tiepolo, Grasso, Crossley - Group 6"
+date: "23 February 2025"
+output: pdf_document
+fontsize: 10pt
+highlight: tango
+---
+
+
+``` {r setup, include=FALSE}
+data <- read.table('/Users/francescotiepolo/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1/Part 1/cholesterol.txt', header = TRUE, sep = " ")
+set.seed(13319817)
+```
+
+## Exercise 1
+
+### a
+
+We first plot the data to determine whether a normal distribution is followed. It is done by interpreting qqplots.
+The correlation between the data from before and after the diet is also tested through a correlation test (Pearson) and a scatterplot of the data against each other. These are shown below.
+
+```{r, echo=FALSE, fig.height=3}
+par(mfrow=c(1,2))
+
+qqnorm(data$Before, main = "Q-Q Plot of Before")
+qqline(data$Before, col = "blue")
+
+qqnorm(data$After8weeks, main = "Q-Q Plot of After 8 Weeks")
+qqline(data$After8weeks, col = "red")
+
+par(mfrow=c(1,1))
+plot(data$Before~data$After8weeks); abline(lm(data$Before~data$After8weeks))
+```
+```{r}
+print(cor(data$Before,data$After8weeks))
+cor.test(data$Before,data$After8weeks)
+```
+Due to the strong linearity of the qqplots of the data from before and after the low fat low cholesterol diet, it is assumed that the data follows a normal distribution. In terms of correlation between the data, the scatter plot suggests a strong positive trend, which is highlighted by the fitted regrsssion line. Furthermore, the Pearson correlation test, with the null hypothesis that the true correlation between the data from before and 8 weeks after adopting the diet is equal to zero, returns a p-value of 2.321e-15. Since the p-value is below 0.05, we reject the null hypothesis at a 95% confidence level, providing strong evidence of a significant correlation between the two sets of data.
+
+### b
+
+In order to verify whether the diet with low fat margarine has a significant eﬀect, various relevant tests can be applied. Identifying whether the data is paired or not allows us to choose the appropriate tests to run.Since the data from before and after 8 Weeks represent the same individual measured twice, the data is paired.Thus, a paired t-test and a Wilcoxon signed rank test are applied to the data.
+``` {r}
+t_paired <- t.test(data$Before, data$After8weeks, paired = TRUE)
+wil_paired <- wilcox.test(data$Before, data$After8weeks, paired = TRUE)
+print(t_paired)
+print(wil_paired)
+```
+
+The paired t-test and the Wilcoxon signed rank test with the null-hypothesis that the data from before and after 8 weeks of dieting are equal have respectively p-values of 3.279e-11 and 7.629e-06. Since both p-values are below 0.05, we reject the null hypothesis at a 95% confidence level, providing strong evidence that the data from before and after the dieting are not equal. 
+Further tests providing useful information on the data are the permutation test and the Mann-Whitney test. While the permutation test does not have contrasting assumptions to the data, the Mann-Whitney test requires independent data, which makes it unsuitable for paired data.
+``` {r}
+mystat=function(x,y) {mean(x-y)}
+B=10000; tstar=numeric(B)
+for(i in 1:B){
+  datastar=t(apply(cbind(data$Before,data$After8weeks),1,sample))
+  tstar[i]=mystat(datastar[,1],datastar[,2]) }
+myt=mystat(data$Before,data$After8weeks)
+print(myt)
+pl <- sum(tstar < myt) / B
+pr <- sum(tstar > myt) / B
+p <- 2 * min(pl, pr)
+print(p)
+```
+```{r, echo=FALSE, fig.height=3}
+hist(tstar, main="Permutation Test Distribution", col="lightblue", border="black")
+
+lines(rep(myt, 2), c(0, max(hist(tstar, plot=FALSE)$counts)), col="red", lwd=2)
+```
+10000 permutations are run during which each pair (Before, After8weeks) is randomly shuffled and its mean difference is calculated. The original mean difference of the shuffled data is approximately 0.6289. A histogram representing the permuted test statistics is shown, where the red line indicates this original observed mean difference.
+pl counts the proportion of permuted test statistics that are less than the observed value (myt). pr counts the proportion of permuted test statistics that are greater than the observed value (myt).
+The permutation test p-value is 0. Since p < 0.05, we reject the null hypothesis that the data from before and after the diet are the same, meaning the difference between them is statistically significant.
+
+### c
+A 97% Confidence Interval (CI)  based on normality and a bootstrap 97%-CI for the mean data after 8 weeks of diet are constructed and compared to test the robustness of findings.
+``` {r}
+# 97% CI based on normality
+mean_after <- mean(data$After8weeks)
+sd_after <- sd(data$After8weeks)
+n <- length(data$After8weeks)
+error <- qt(0.985, df=n-1) * (sd_after/sqrt(n))
+param_CI <- c(mean_after - error, mean_after + error)
+print(param_CI)
+# Bootstrap
+B <- 100000
+Tstar <- numeric(B)
+# Bootstrap resampling
+for (i in 1:B) {
+  Xstar <- sample(data$After8weeks, replace = TRUE) 
+  Tstar[i] <- mean(Xstar)
+}
+# Calculate the quantiles for the confidence interval
+Tstar15 <- quantile(Tstar, 0.015)
+Tstar985 <- quantile(Tstar, 0.985)
+# Print the confidence interval
+cat("Bootstrap 97% Confidence Interval:", Tstar15, "to", Tstar985, "\n")
+``` 
+
+The parametric CI, which assumes normality, results in the interval [5.163, 6.393], while the bootstrap CI, which is non-parametric and does not require a normality assumption, returns the interval [5.225, 6.322].
+Since both intervals do not include 0, the null hypothesis that the diet does not have a significant effect is rejected.
+
+
+### d
+A bootstrap test with test statistic T = max(X1, X2, ..., X18) is run to verify a hypothesis about the upper bound (theta) of the distribution of data$After8weeks. As given by the exercise description, the possible theta values, which represent the upper bounds for the cholesterol levels, range from 3 to 12.
+``` {r}
+X = data$After8weeks
+n = length(X)
+theta_values = seq(3, 12, by=0.1)
+T_obs = max(X)
+pvals <- numeric(length(theta_values))
+bootstrap_test <- function(X, theta, B = 10000) {
+  # Observed statistic
+  T_obs <- max(X)
+  n <- length(X)
+  # Generate bootstrap replicates of T
+  tstar <- numeric(B)
+  for (b in 1:B) {
+    xstar <- runif(n, min=3, max=theta)
+    tstar[b] <- max(xstar)
+  }
+  pr <- mean(tstar > T_obs)
+  pval <- 2 * min(pr, 1 - pr)
+  return(pval)
+}
+for (i in seq_along(theta_values)) {
+  pvals[i] = bootstrap_test(X, theta=theta_values[i], B = 10000)
+}
+not_rejected = theta_values[pvals >= 0.05]
+not_rejected
+```
+```{r, echo=FALSE, fig.height=3}
+hist(data$After8weeks, 
+     main="Histogram of Cholesterol Levels", 
+     xlab="Cholesterol Level", 
+     col="lightgray", 
+     border="black", 
+     prob=TRUE)
+``` 
+The values ranging from 7.7 to 8.7, as printed above, are not rejected as possible true upper bounds of cholesterol levels after 8 weeks, while theta < 7.7 and theta > 8.7 are rejected. The histogram of the cholesterol level confirms that the upper bound value is approximately 8, which resides in the range [7.7, 8.7].
+
+The Kolmogorov-Smirnov test is not considered as it assumes the data to be independent. Since in this case the data is dependent on each other, it would give misleading results. 
+
+
+### e
+To verify whether the median cholesterol level after 8 weeks of low fat diet is less than 6, and to check if the fraction of the cholesterol levels after 8 weeks of low fat diet less than 4.5 is at most 25% binomial test are performed.
+``` {r}
+bin_test_1 <- binom.test(sum(data$After8weeks < 6), length(data$After8weeks), p = 0.5, alternative = "l")
+print(bin_test_1)
+successes <- sum(data$After8weeks < 4.5)
+n <- length(data$After8weeks) 
+bin_test_2 <- binom.test(successes, n, p = 0.25, alternative = "g")
+print(bin_test_2)
+``` 
+For the first binomial test the null hypothesis is that the probability of a cholesterol level being below 6 is at least 0.5. Since the p-value is 0.8811, which is greater than 0.05, we fail to reject the null hypothesis, meaning there is not satisfactory evidence that the median cholesterol level is below 6.
+For the second test the null hypothesis is that the proportion of cholesterol levels below 4.5 is $\leq$ 0.25. Since the p-value is 0.8647, which is greater than 0.05, we fail to reject the null hypothesis, meaning there is not enough evidence supporting that more than 25% of cholesterol levels are below 4.5.
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Import libraries
+library(ggplot2)
+library(patchwork)
+options(digits = 3)
+
+# Read the data
+setwd('/Users/francescotiepolo/Library/CloudStorage/OneDrive-UvA/CLS/Experimental Design and Data Analysis/Assignment 1/EDDA_assignment1/Part 2')
+data <- read.table("crops.txt", header=TRUE)
+data$County <- factor(data$County)  
+data$Related <- factor(data$Related, levels = c("no", "yes"))
+```
+
+## Exercise 2
+
+  We continue with the analysis of the values of crops for several farms in Iowa for which data was collected from three different counties of the state. Namely, we are interested in the effect (on the amount of crops) of the county in which the farm is located and the possible relation that the tenant might have with the landlord. In addition, we are also provided additional information on the size of each farm. A summary of the data is provided here (for the 4 variables, over the total 30 observations):
+
+```{r}
+summary(data)
+```
+
+
+### a)
+
+  We are initially interested in analyzing the effect of *County* and *Related* on *Crops*, without taking *Size* into account, therefore the interest is firstly devoted to the following two-way ANOVA model:
+$$Cr_{ijk}=\mu+\alpha_{i}+\beta_{j}+\gamma_{ij}+e_{ijk}$$
+where $Cr_{ijk}$ refers to the value of *Crops* of observation $k$ (in *County* $i$ and *Related* $j$), $\mu$ to the overall mean, $\alpha_i$ to the main effect of *County* $i$, $\beta_j$ to the main effect of *Related* $j$, $\gamma_{ij}$ to the interaction effect of levels $i$ and $j$ of *County* and *Related* (respectively) and $e_{ijk}$ to the independent error of the model (of which normality will later be tested). Thus, by studying this (and the following) ANOVA model(s), we test (with a $0.05$ significance level) the following hypotheses: 1. $H_{int}: \gamma_{ij}=0$ for every $(i,j)$ (no interaction between factors *County* and *Related*); 2. $H_{cou}: \alpha_{i}=0$ for every $i$ (no main effect of *County*); 3. $H_{rel}: \beta_{j}=0$ for every $j$ (no main effect of *Related*).
+
+```{r}
+model_int = lm(Crops ~ County * Related, data=data); anova(model_int)
+```
+
+Focusing on the last p-value, following the computation of the F-statistics reported on the *F value* column, we cannot reject $H_{int}$ as $0.88>0.05$. We double check the statement by running an ANOVA model without interaction term and comparing it with our first model:
+
+```{r}
+model = lm(Crops ~ County + Related, data=data); anova(model_int, model)
+```
+
+The p-value is indeed the same (because of the use of a balanced design). For additional context, we plot the *Crops* amounts agains the *County* factor for the two *Related* levels:
+
+```{r, echo=FALSE, fig.height=3}
+interaction.plot(data$County, data$Related, data$Crops,
+                 main="Interaction Plot",
+                 xlab="County",
+                 ylab="Crops",
+                 trace.label="Related")
+```
+
+As expected, the lines do not differ significantly from a parallel behavior, signalling the high likelihood of lack of interaction. Therefore, in the following parts of the report, the model of interest will be the one without interaction:
+
+```{r, echo=FALSE}
+anova(model)
+```
+
+Analyzing this, the significance of the estimates for *County* and *Related* is not greatly impacted compared to the model with interaction and, thus, we again cannot reject neither $H_{cou}$ nor $H_{rel}$, signalling the lack of sufficient evidence in our data needed to prove the existence of a main effect of *County* and *Related* on *Crops*. Nevertheless, we check the requirement of the model, namely the normality assumption for the model residuals $e_{ijk}$ and that their spread does not change systematically with the fitted values $\hat{Y}_{ijk}$:
+
+```{r, echo=FALSE, fig.height=3}
+par(mfrow=c(1,2)); qqnorm(residuals(model))
+plot(fitted(model), residuals(model),
+     main="Residuals Spread",
+     xlab = expression(hat(Y)[ijk]),
+     ylab = expression(e[ijk]))
+```
+
+From the above plots, we cannot state the absence of the normality assumption, meaning the model, even if with not significant estimates, is at least valid (according to this observation).
+  The last step of this first part of Exercise 2 consists in utilizing the estimates of our model: we want to estimate the crops for a typical farm in *County* 3 for which landlord and tenant are *not* related, referring to the following:
+
+```{r, echo=FALSE}
+summary(model)$coefficients
+```
+The desired value can then be computed in the following way:
+$$Crops_{cou=3, rel=no} = 6800.6 + 959.7 = 7760.3$$
+
+
+### b)
+
+  We proceed by including *Size* in our analysis, included in the model as numerical explanatory variable. In particular, we are interested in investigating whether the influence of *Size* on the *Crops* value is similar for all three counties and whether the influence of *Size* depends on the relation of landlord and tenant of the farm.
+  Starting with the former, we formulate the following ANCOVA model:
+$$Cr_{ik}=\mu+\alpha_{i}+\beta_{j}+\delta S_{ik}+\lambda_{i} S_{ik}+e_{ijk}$$
+where $S_{ik}$ refers to the *Size* of observation $k$ (of *County* $i$), $\delta$ to its effect on *Crops* ($Cr_{ik}$) and $\lambda_{i}$ to the interaction effect between *Size* of observation $k$ (of *County* $i$) and factor *County* $i$. The corresponding null hypotheses then become: 1. $H_{c/s}: \lambda_{i}=0$ for every $i$ (no interaction between *County* and *Size*); 2. $H_{cou}: \alpha_{i}=0$ for every $i$ (no main effect of *County*). 3. $H_{rel}: \beta_{j}=0$ for every $j$ (no main effect of *Related*).
+
+Since *Size* is only included as explanatory variable, we are not formally interested in its main effect and, thus, a null hypothesis about $\delta$.
+To test $H_{s/c}$ we perform:
+```{r}
+model_base_size <- lm(Crops ~ County + Related + Size, data=data)
+model_interact_county <- lm(Crops ~ Related + County * Size, data = data)
+anova(model_interact_county, model_base_size)
+```
+
+Therefore, the interaction effect ($\lambda_{i}$) is significant at the $0.05$ significance value and $H_{s/c}$ can ultimately be rejected. Regarding $H_{cou}$, we explicitly run the following:
+```{r}
+anova(model_interact_county)
+```
+and thus also reject $H_{cou}$, meaning that the data applied to this model offers sufficient evidence to reject $\alpha_{i}=0$ for every $i$. $H_{rel}$ cannot instead be rejected (p-value$=0.114$).
+
+  Similarly, for the interaction between *Size* and the factor *Related*, the ANCOVA model can be expressed as follow:
+$$Cr_{jk}=\mu+\alpha_{i}+\beta_{j}+\delta S_{jk}+\rho_{j} S_{jk}+e_{ijk}$$
+where $S_{jk}$ refers to the *Size* of observation $k$ (of *Related* factor $j$), $\delta$ to its effect on *Crops* ($Cr_{ik}$) and $\rho_{j}$ to the interaction effect between *Size* of observation $k$ and factor *Related* $j$. The corresponding null hypotheses then become: 1. $H_{r/s}: \rho_{j}=0$ for every $j$ (no interaction between *Related* and *Size*); 2. $H_{cou}: \alpha_{i}=0$ for every $i$ (no main effect of *County*). 3. $H_{rel}: \beta_{j}=0$ for every $j$ (no main effect of *Related*).
+
+Following the desogn applied above for *County* and its interaction with *Size*:
+```{r}
+model_interact_related <- lm(Crops ~ County + Related * Size, data = data)
+anova(model_interact_related, model_base_size)
+```
+As the F test demonstrates, we cannot reject $H_{r/s}$ since its p-value it is larger than the significance desired. Printing the whole ANCOVA model, we can also state that we fail to reject $H_{rel}$:
+```{r, echo=FALSE}
+anova(model_interact_related)
+```
+
+meaning that *Related* does not seem to have a significant effect on the value of *Crops* neither through a main nor a interaction (with *Size*) effect. On the other hand, $H_{cou}$ can again be rejected (p-value$=0.039$) on the basis of which we can state that *County* has a significant effect on *Crops*.
+The interactions studied regarding *Size* can also be studied graphically as follows:
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=2}
+p1 <- ggplot(data, aes(x=Size, y=Crops, color=County)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE) +
+  ggtitle("Effect of Size by County")
+p2 <- ggplot(data, aes(x=Size, y=Crops, color=Related)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE) +
+  ggtitle("Effect of Size by Relatedness")
+p1 + p2
+```
+It can then be stated that the graphics confirm the statistical tests above, as it can be seen how the effect of *Size* (the slope of the lines) differ more significantly in the *County* panel compared to the *Related* one.
+
+  The most appropriate model to study the data at hand is therefore the one including *County*, *Related*, *Size* and the interaction of the latter with *County*.
+
+
+### c)
+
+  Observing the estimates of the model just mentioned:
+```{r, echo=FALSE}
+summary(model_interact_county)$coefficients
+```
+we can study the effect of (1) *County*, (2) *Related* nad (3) *Size*: 1. *County* has a significant impact on *Crops*, such that farms in *County* 2 produce significantly less *Crops*, while there is no significant difference between production of farms in *County* 1 and 3 (keeping everything else constant); this effect (related to *County* 2) is significantly contrasted the larger the farm is. 2. Being related to the landlord does not significantly impact the value of *Crops*. 3. Other than the already mentioned interaction effect with *County* factor 2, *Size* has a significant main positive effect on *Crops*: the larger the farm, the more it will produce (keeping everything else constant).
+
+
+### d)
+
+Lastly we are asked to predict the *Crops* for a farm from *County* 2 of *Size* 165, with related landlord and tenant. Looking at our chosen model, we compute:
+$$Crops_{cou=2, rel=yes, s=165} = 2461.01 -239.10-4214.05+22.70*165+26.59*165 = 6141.30$$
+as confirmed by the follwing code, which also provides us the error variance:
+```{r}
+farm <- data.frame(County = factor(2, levels = levels(data$County)),
+                      Size = 165,
+                      Related = "yes")
+predicted_crops <- predict(model_interact_county, farm, interval="prediction")
+predicted_crops
+```
+

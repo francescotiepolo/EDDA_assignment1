@@ -134,7 +134,7 @@ anova(model_interact_related)
 
 meaning that *Related* does not seem to have a significant effect on the value of *Crops* neither through a main nor a interaction (with *Size*) effect. On the other hand, $H_{cou}$ can again be rejected (p-value$=0.039$) on the basis of which we can state that *County* has a significant effect on *Crops*.
 The interactions studied regarding *Size* can also be studied graphically as follows:
-```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=3}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.height=2}
 p1 <- ggplot(data, aes(x=Size, y=Crops, color=County)) +
   geom_point() +
   geom_smooth(method="lm", se=FALSE) +
@@ -161,6 +161,8 @@ we can study the effect of (1) *County*, (2) *Related* nad (3) *Size*:
 2. Being related to the landlord does not significantly impact the value of *Crops*.
 
 3. Other than the already mentioned interaction effect with *County* factor 2, *Size* has a significant main positive effect on *Crops*: the larger the farm, the more it will produce (keeping everything else constant).
+
+
 ### d)
 
 Lastly we are asked to predict the *Crops* for a farm from *County* 2 of *Size* 165, with related landlord and tenant. Looking at our chosen model, we compute:
